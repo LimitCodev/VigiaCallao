@@ -236,11 +236,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 'Atender en 10 min en vez de 60 min ahorra 50 min = S/.83 '
                 'por alerta resuelta. Estimación conservadora.',
             child: Row(
-              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  '$resolvedCount alertas atendidas × S/.83',
-                  style: AppTextStyles.bodySm.copyWith(color: Colors.white70),
+                Expanded(
+                  child: Text(
+                    '$resolvedCount alertas atendidas × S/.83',
+                    style: AppTextStyles.bodySm.copyWith(color: Colors.white70),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
                 ),
                 const SizedBox(width: 4),
                 const Icon(Icons.info_outline, size: 12, color: Colors.white70),
