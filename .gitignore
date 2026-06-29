@@ -43,3 +43,14 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Entornos virtuales y caché de Python (Backend y ML)
+venv/
+__pycache__/
+.env
+
+# Modelos pesados de Machine Learning
+*.pt
+
+# Videos de prueba locales para la demo
+test_video/*.mp4
