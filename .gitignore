@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+
+# Modelos YOLO (pesados, no van al repo)
+*.pt
+*.onnx
+
+# Video de prueba (pesado, no va al repo)
+ml/test_video/*.mp4
+ml/test_video/*.avi
+ml/test_video/*.mkv
+
+# Variables de entorno reales
+.env
+
+# Editor
+.DS_Store
+*.swp
