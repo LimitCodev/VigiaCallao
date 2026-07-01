@@ -27,7 +27,7 @@ def _draw(frame, detections, monitor: ZoneMonitor) -> None:
         cv2.putText(frame, label, (bx1, by1 - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
         if alert:
-            send_alert(d.track_id, d.class_name, elapsed, d.bbox)
+            send_alert(d.track_id, d.class_name, elapsed, d.bbox, confidence=d.confidence)
 
 
 def main() -> None:

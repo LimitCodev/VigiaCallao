@@ -4,7 +4,13 @@ import requests
 from config import ALERT_ENDPOINT, ML_API_KEY
 
 
-def send_alert(track_id: int, class_name: str, elapsed_seconds: float, bbox: tuple[int, int, int, int]) -> bool:
+def send_alert(
+    track_id: int,
+    class_name: str,
+    elapsed_seconds: float,
+    bbox: tuple[int, int, int, int],
+    confidence: float = 0.85,
+) -> bool:
     """
     POST de una alerta al backend. No lanza excepción si falla la red —
     una alerta perdida no debe tumbar el pipeline de detección.
@@ -15,6 +21,7 @@ def send_alert(track_id: int, class_name: str, elapsed_seconds: float, bbox: tup
         "vehicle_type": class_name,
         "seconds_parked": round(elapsed_seconds, 1),
         "bbox": bbox,
+        "confidence": round(confidence, 2),
     }
     headers = {"Authorization": f"Bearer {ML_API_KEY}"}
 
