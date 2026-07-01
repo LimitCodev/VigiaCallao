@@ -19,3 +19,10 @@ ml/test_video/*.mkv
 # Editor
 .DS_Store
 *.swp
+backend/venv/
+backend/__pycache__/
+backend/.env
+frontend/build/
+frontend/.dart_tool/
+frontend/.flutter-plugins-dependencies
+frontend/.env
