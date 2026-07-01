@@ -14,10 +14,12 @@ class SocketService {
   io.Socket? _socket;
 
   final void Function(AlertModel alert) onNewAlert;
+  final void Function(AlertModel alert)? onUpdateAlert;
   final void Function(SocketStatus status) onStatusChange;
 
   SocketService({
     required this.onNewAlert,
+    this.onUpdateAlert,
     required this.onStatusChange,
   });
 
@@ -46,6 +48,12 @@ class SocketService {
         } catch (_) {
           // Payload inesperado: lo ignoramos en vez de tumbar la app.
         }
+      })
+      ..on('update_alert', (data) {
+        try {
+          final json = data is Map<String, dynamic> ? data : <String, dynamic>{};
+          onUpdateAlert?.call(AlertModel.fromJson(json));
+        } catch (_) {}
       });
   }
 

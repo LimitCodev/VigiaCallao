@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/alert_model.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
@@ -47,14 +48,7 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
         _saving = false;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(status == AlertStatus.resolved
-                ? 'Alerta marcada como atendida.'
-                : 'Alerta escalada a supervisión.'),
-            backgroundColor: AppColors.surfaceElevated,
-          ),
-        );
+        Navigator.of(context).pop(_alert);
       }
     } catch (e) {
       setState(() => _saving = false);
@@ -209,18 +203,24 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
             ),
           ],
           const SizedBox(height: AppSpacing.sm),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Función de compartir pendiente de backend.')),
-                );
-              },
-              icon: const Icon(Icons.share_outlined, size: 18),
-              label: const Text('Compartir'),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  final text = 'ALERTA VigíaCallao #${_alert.id}\n'
+                      'Zona: ${_alert.zoneName ?? "Zona #${_alert.zoneId}"}\n'
+                      'Vehículo: ${_alert.vehicleType.label}\n'
+                      'Duración: ${_alert.durationSeconds}s\n'
+                      'Estado: ${_alert.status.label}';
+                  Clipboard.setData(ClipboardData(text: text));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Información copiada al portapapeles.')),
+                  );
+                },
+                icon: const Icon(Icons.share_outlined, size: 18),
+                label: const Text('Compartir'),
+              ),
             ),
-          ),
         ],
       ),
     );

@@ -1,4 +1,8 @@
+import 'dart:io';
+
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
+import '../config/app_config.dart';
 import '../models/alert_model.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
@@ -51,10 +55,31 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }).toList();
   }
 
-  void _exportCsv() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Exportación a CSV pendiente de implementar con backend.')),
-    );
+  Future<void> _exportCsv() async {
+    try {
+      final uri = Uri.parse('${AppConfig.alertsEndpoint}/export/csv');
+      final client = http.Client();
+      final res = await client.get(uri).timeout(const Duration(seconds: 15));
+      if (res.statusCode == 200) {
+        final dir = Directory.systemTemp;
+        final file = File('${dir.path}/alertas_vigiacallao.csv');
+        await file.writeAsString(res.body);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('CSV guardado en: ${file.path}')),
+          );
+        }
+      } else {
+        throw Exception('Error del servidor: ${res.statusCode}');
+      }
+      client.close();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al exportar: $e'), backgroundColor: AppColors.danger),
+        );
+      }
+    }
   }
 
   @override
@@ -128,10 +153,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               ],
                               rows: rows
                                   .map((a) => DataRow(
-                                        onSelectChanged: (_) => Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                              builder: (_) => AlertDetailScreen(alert: a)),
-                                        ),
+                                          onSelectChanged: (_) => Navigator.of(context).push<AlertModel>(
+                                            MaterialPageRoute(
+                                                builder: (_) => AlertDetailScreen(alert: a)),
+                                          ),
                                         cells: [
                                           DataCell(Text('#${a.id}', style: AppTextStyles.mono)),
                                           DataCell(Text(a.zoneName ?? 'Zona #${a.zoneId}',

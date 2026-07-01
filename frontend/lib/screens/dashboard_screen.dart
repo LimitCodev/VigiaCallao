@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/alert_model.dart';
+import '../models/camera_model.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/kpi_card.dart';
@@ -24,27 +25,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<AlertModel> _initialAlerts = [];
   bool _loading = true;
   String? _error;
-
-  // Placeholder hasta que el backend expone /api/cameras (Sección 10
-  // no lo incluye originalmente). Reemplazar con _api.getCameras().
-  final int _activeCameras = 7;
-  final int _totalCameras = 8;
+  int _activeCameras = 0;
+  int _totalCameras = 0;
 
   @override
   void initState() {
     super.initState();
-    _loadAlerts();
+    _loadData();
   }
 
-  Future<void> _loadAlerts() async {
+  Future<void> _loadData() async {
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
-      final alerts = await _api.getAlerts(limit: 50);
+      final results = await Future.wait([
+        _api.getAlerts(limit: 50),
+        _api.getCameras(),
+      ]);
+      final alerts = results[0] as List<AlertModel>;
+      final cameras = results[1] as List<CameraModel>;
       setState(() {
         _initialAlerts = alerts;
+        _activeCameras = cameras.where((c) => c.isActive).length;
+        _totalCameras = cameras.length;
         _loading = false;
       });
     } catch (e) {
@@ -82,7 +87,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final impactoMitigado = resolvedToday * AlertModel.impactoPorAlertaResuelta;
 
     return RefreshIndicator(
-      onRefresh: _loadAlerts,
+      onRefresh: _loadData,
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(AppSpacing.xl),
         child: Column(
@@ -105,7 +110,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ),
                 OutlinedButton.icon(
-                  onPressed: _loadAlerts,
+                  onPressed: _loadData,
                   icon: const Icon(Icons.refresh, size: 16),
                   label: const Text('Actualizar'),
                 ),
@@ -275,7 +280,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               style: AppTextStyles.bodySm.copyWith(color: AppColors.textPrimary),
             ),
           ),
-          TextButton(onPressed: _loadAlerts, child: const Text('Reintentar')),
+           TextButton(onPressed: _loadData, child: const Text('Reintentar')),
         ],
       ),
     );

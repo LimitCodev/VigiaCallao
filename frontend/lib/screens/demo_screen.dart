@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import '../config/app_config.dart';
 import '../models/alert_model.dart';
 import '../theme/app_theme.dart';
 import '../widgets/status_badge.dart';
 
-/// Pantalla especial para el jurado (Sección 13.7 — CRÍTICA).
-/// Mientras el script Python (YOLO26n + OpenCV) procesa el MP4 en
-/// la laptop y dibuja bounding boxes en su propia ventana, esta
-/// pantalla muestra el lado "Centro de Control": la alerta llegando
-/// en vivo vía WebSocket. Es deliberadamente más grande y limpia
-/// que las demás — se proyecta en el Congreso.
 class DemoScreen extends StatefulWidget {
-  const DemoScreen({super.key});
+  final List<AlertModel> liveAlerts;
+  const DemoScreen({super.key, this.liveAlerts = const []});
 
   @override
   State<DemoScreen> createState() => _DemoScreenState();
@@ -18,11 +15,30 @@ class DemoScreen extends StatefulWidget {
 
 class _DemoScreenState extends State<DemoScreen> {
   AlertModel? _lastAlert;
-  final int _alertCount = 0;
 
-  // En producción, esta pantalla debe escuchar el mismo socket que
-  // MainShell. Para simplicidad de demo se puede inyectar el último
-  // AlertModel recibido vía socket_service, o conectar uno propio.
+  @override
+  void didUpdateWidget(DemoScreen old) {
+    super.didUpdateWidget(old);
+    if (widget.liveAlerts.isNotEmpty && widget.liveAlerts.first != _lastAlert) {
+      setState(() => _lastAlert = widget.liveAlerts.first);
+    }
+  }
+
+  Future<void> _startDemo() async {
+    try {
+      await http
+          .post(Uri.parse('${AppConfig.backendUrl}/api/demo/start'))
+          .timeout(const Duration(seconds: 5));
+    } catch (_) {}
+  }
+
+  Future<void> _triggerAlert() async {
+    try {
+      await http
+          .post(Uri.parse('${AppConfig.backendUrl}/api/demo/trigger'))
+          .timeout(const Duration(seconds: 5));
+    } catch (_) {}
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,15 +58,36 @@ class _DemoScreenState extends State<DemoScreen> {
                 child: Text('MODO DEMOSTRACIÓN',
                     style: AppTextStyles.label.copyWith(color: AppColors.danger)),
               ),
+              const Spacer(),
+              ElevatedButton.icon(
+                onPressed: _startDemo,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.success.withValues(alpha: 0.15),
+                  foregroundColor: AppColors.success,
+                  side: BorderSide(color: AppColors.success.withValues(alpha: 0.4)),
+                ),
+                icon: const Icon(Icons.play_arrow, size: 18),
+                label: const Text('Iniciar demo'),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton.icon(
+                onPressed: _triggerAlert,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.accent.withValues(alpha: 0.15),
+                  foregroundColor: AppColors.accent,
+                  side: BorderSide(color: AppColors.accent.withValues(alpha: 0.4)),
+                ),
+                icon: const Icon(Icons.add_alert_outlined, size: 18),
+                label: const Text('Simular alerta'),
+              ),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          Text('Vigía Callao en vivo', style: AppTextStyles.displayLg),
+          Text('Vigía Callao — Demo en vivo', style: AppTextStyles.displayLg),
           const SizedBox(height: 4),
           Text(
-            'El video se procesa con YOLO26n en esta laptop. Cuando detecta un '
-            'vehículo detenido más del umbral configurado, la alerta llega aquí '
-            'en tiempo real vía WebSocket.',
+            'Las alertas aparecen aquí en tiempo real vía WebSocket.\n'
+            'Si el script ML está corriendo, la ventana OpenCV muestra el video con detecciones YOLO.',
             style: AppTextStyles.bodyMd,
           ),
           const SizedBox(height: AppSpacing.xl),
@@ -58,58 +95,11 @@ class _DemoScreenState extends State<DemoScreen> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Panel de instrucciones / estado del pipeline
                 Expanded(
                   flex: 5,
-                  child: Container(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(AppRadius.lg),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Flujo del sistema', style: AppTextStyles.titleLg),
-                        const SizedBox(height: AppSpacing.md),
-                        _pipelineStep(
-                          icon: Icons.videocam_outlined,
-                          title: 'Captura de video',
-                          subtitle: 'OpenCV lee el MP4 de tráfico del Callao',
-                          done: true,
-                        ),
-                        _pipelineStep(
-                          icon: Icons.crop_free,
-                          title: 'Detección YOLO26n',
-                          subtitle: 'Bounding boxes + tracking BoT-SORT',
-                          done: true,
-                        ),
-                        _pipelineStep(
-                          icon: Icons.timer_outlined,
-                          title: 'Cronómetro de zona',
-                          subtitle: 'Mide permanencia en zona restringida',
-                          done: true,
-                        ),
-                        _pipelineStep(
-                          icon: Icons.send_outlined,
-                          title: 'Envío al backend',
-                          subtitle: 'HTTP POST + WebSocket "new_alert"',
-                          done: _lastAlert != null,
-                        ),
-                        _pipelineStep(
-                          icon: Icons.desktop_windows_outlined,
-                          title: 'Recepción en este panel',
-                          subtitle: 'Alerta visible sin recargar la app',
-                          done: _lastAlert != null,
-                          isLast: true,
-                        ),
-                      ],
-                    ),
-                  ),
+                  child: _buildPipelinePanel(),
                 ),
                 const SizedBox(width: AppSpacing.lg),
-                // Panel de última alerta recibida
                 Expanded(
                   flex: 6,
                   child: _lastAlert == null
@@ -124,13 +114,45 @@ class _DemoScreenState extends State<DemoScreen> {
     );
   }
 
-  Widget _pipelineStep({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required bool done,
-    bool isLast = false,
-  }) {
+  Widget _buildPipelinePanel() {
+    final hasAlert = _lastAlert != null;
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Flujo del sistema', style: AppTextStyles.titleLg),
+          const SizedBox(height: AppSpacing.md),
+          _step(Icons.videocam_outlined, 'Captura de video',
+              'OpenCV lee el MP4 de tráfico del Callao', true),
+          _step(Icons.crop_free, 'Detección YOLO26n',
+              'Bounding boxes + tracking BoT-SORT', true),
+          _step(Icons.timer_outlined, 'Cronómetro de zona',
+              'Mide permanencia en zona restringida', true),
+          _step(Icons.send_outlined, 'Envío al backend',
+              'HTTP POST + WebSocket "new_alert"', hasAlert, isLast: true),
+          const SizedBox(height: AppSpacing.lg),
+          if (!hasAlert)
+            Center(
+              child: Text(
+                'Ejecuta el ML en otra terminal:\n'
+                '~/VigiaCallao/ml/venv/bin/python main.py',
+                textAlign: TextAlign.center,
+                style: AppTextStyles.mono.copyWith(fontSize: 11, color: AppColors.textSecondary),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _step(IconData icon, String title, String subtitle, bool done,
+      {bool isLast = false}) {
     final color = done ? AppColors.success : AppColors.textDisabled;
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.md),
@@ -160,9 +182,11 @@ class _DemoScreenState extends State<DemoScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: AppTextStyles.bodyLg.copyWith(
-                    color: AppColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 14,
-                  )),
+                  Text(title,
+                      style: AppTextStyles.bodyLg.copyWith(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14)),
                   Text(subtitle, style: AppTextStyles.bodySm),
                 ],
               ),
@@ -178,25 +202,22 @@ class _DemoScreenState extends State<DemoScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.border, style: BorderStyle.solid),
+        border: Border.all(color: AppColors.border),
       ),
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            SizedBox(
+            const SizedBox(
               width: 36,
               height: 36,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: AppColors.accent.withValues(alpha: 0.6),
-              ),
+              child: CircularProgressIndicator(strokeWidth: 2),
             ),
             const SizedBox(height: AppSpacing.md),
-            Text('Esperando detecciones...', style: AppTextStyles.titleMd),
+            Text('Esperando alertas...', style: AppTextStyles.titleMd),
             const SizedBox(height: 4),
             Text(
-              'Inicia el script de detección en la laptop para ver la\nalerta aparecer aquí en tiempo real.',
+              'Presiona "Iniciar demo" para alertas automáticas\no corre el script ML para detección con YOLO.',
               textAlign: TextAlign.center,
               style: AppTextStyles.bodySm,
             ),
@@ -208,36 +229,63 @@ class _DemoScreenState extends State<DemoScreen> {
 
   Widget _buildAlertReceivedPanel(AlertModel alert) {
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         gradient: AppColors.brandGradient,
         borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: AppColors.danger.withValues(alpha: 0.5), width: 1.5),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      clipBehavior: Clip.antiAlias,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              const StatusBadge(status: AlertStatus.active),
-              const Spacer(),
-              Text('#$_alertCount detectada', style: AppTextStyles.bodySm),
-            ],
+          Expanded(
+            flex: 4,
+            child: alert.thumbnailUrl != null
+                ? Image.network(alert.thumbnailUrl!, fit: BoxFit.cover)
+                : Container(
+                    color: AppColors.surfaceElevated,
+                    child: const Center(
+                      child: Icon(Icons.videocam_off_outlined,
+                          size: 40, color: AppColors.textDisabled),
+                    ),
+                  ),
           ),
-          const SizedBox(height: AppSpacing.lg),
-          Text('${alert.vehicleType.label} detenido',
-              style: AppTextStyles.displayMd.copyWith(fontSize: 26)),
-          const SizedBox(height: 4),
-          Text(alert.zoneName ?? 'Zona #${alert.zoneId}', style: AppTextStyles.bodyLg),
-          const SizedBox(height: AppSpacing.lg),
-          Wrap(
-            spacing: AppSpacing.lg,
-            runSpacing: AppSpacing.sm,
-            children: [
-              _statBlock('${alert.durationSeconds}s', 'Tiempo detenido'),
-              _statBlock('${(alert.confidence * 100).toStringAsFixed(0)}%', 'Confianza'),
-              _statBlock('S/. 83', 'Impacto mitigable'),
-            ],
+          Expanded(
+            flex: 5,
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Row(
+                    children: [
+                      const StatusBadge(status: AlertStatus.active),
+                      const Spacer(),
+                      Text('#${widget.liveAlerts.length} detectada',
+                          style: AppTextStyles.bodySm),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  Text('${alert.vehicleType.label} detenido',
+                      style: AppTextStyles.displayMd.copyWith(fontSize: 22)),
+                  const SizedBox(height: 2),
+                  Text(alert.zoneName ?? 'Zona #${alert.zoneId}',
+                      style: AppTextStyles.bodyLg),
+                  const SizedBox(height: AppSpacing.md),
+                  Wrap(
+                    spacing: AppSpacing.lg,
+                    runSpacing: AppSpacing.sm,
+                    children: [
+                      _statBlock('${alert.durationSeconds}s', 'Tiempo detenido'),
+                      _statBlock(
+                          '${(alert.confidence * 100).toStringAsFixed(0)}%', 'Confianza'),
+                      _statBlock('S/. 83', 'Impacto mitigable'),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
@@ -248,7 +296,8 @@ class _DemoScreenState extends State<DemoScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(value, style: AppTextStyles.titleLg.copyWith(color: AppColors.accent)),
+        Text(value,
+            style: AppTextStyles.titleLg.copyWith(color: AppColors.accent)),
         Text(label, style: AppTextStyles.bodySm),
       ],
     );

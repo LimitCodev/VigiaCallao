@@ -1,4 +1,7 @@
 """Envía alertas de vehículo mal estacionado al backend."""
+import base64
+import cv2
+import numpy as np
 import requests
 
 from config import ALERT_ENDPOINT, ML_API_KEY
@@ -10,9 +13,12 @@ def send_alert(
     elapsed_seconds: float,
     bbox: tuple[int, int, int, int],
     confidence: float = 0.85,
+    frame: np.ndarray | None = None,
 ) -> bool:
     """
-    POST de una alerta al backend. No lanza excepción si falla la red —
+    POST de una alerta al backend. Incluye el frame codificado en base64
+    para que el backend lo guarde como thumbnail.
+    No lanza excepción si falla la red —
     una alerta perdida no debe tumbar el pipeline de detección.
     Devuelve True si el backend respondió 2xx.
     """
@@ -23,6 +29,11 @@ def send_alert(
         "bbox": bbox,
         "confidence": round(confidence, 2),
     }
+
+    if frame is not None:
+        _, buffer = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 75])
+        payload["frame_b64"] = base64.b64encode(buffer).decode("utf-8")
+
     headers = {"Authorization": f"Bearer {ML_API_KEY}"}
 
     try:

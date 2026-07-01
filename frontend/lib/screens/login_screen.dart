@@ -1,4 +1,8 @@
+import 'dart:convert';
+
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
+import '../config/app_config.dart';
 import '../theme/app_theme.dart';
 import 'main_shell.dart';
 
@@ -31,14 +35,35 @@ class _LoginScreenState extends State<LoginScreen> {
       _error = null;
     });
 
-    // TODO: reemplazar con llamada real de autenticación contra el backend.
-    await Future.delayed(const Duration(milliseconds: 600));
+    try {
+      final res = await http
+          .post(
+            Uri.parse('${AppConfig.backendUrl}/api/auth/login'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'username': _userCtrl.text.trim(),
+              'password': _passCtrl.text,
+            }),
+          )
+          .timeout(const Duration(seconds: 10));
 
-    if (!mounted) return;
-    setState(() => _loading = false);
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const MainShell()),
-    );
+      if (!mounted) return;
+      setState(() => _loading = false);
+
+      if (res.statusCode == 200) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const MainShell()),
+        );
+      } else {
+        setState(() => _error = 'Usuario o contraseña incorrectos.');
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = 'No se pudo conectar al backend. Verifica que el servidor esté corriendo.';
+      });
+    }
   }
 
   @override

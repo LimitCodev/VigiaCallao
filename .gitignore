@@ -19,10 +19,19 @@ ml/test_video/*.mkv
 # Editor
 .DS_Store
 *.swp
+
+# Backend
 backend/venv/
 backend/__pycache__/
 backend/.env
+backend/static/thumbnails/
+*.db
+
+# Frontend
 frontend/build/
 frontend/.dart_tool/
 frontend/.flutter-plugins-dependencies
 frontend/.env
+
+# ML videos y modelos pesados
+ml/venv/

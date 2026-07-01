@@ -57,7 +57,7 @@ class _AlertsListScreenState extends State<AlertsListScreen> {
   }
 
   void _openDetail(AlertModel alert) {
-    Navigator.of(context).push(
+    Navigator.of(context).push<AlertModel>(
       MaterialPageRoute(builder: (_) => AlertDetailScreen(alert: alert)),
     );
   }

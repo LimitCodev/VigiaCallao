@@ -84,20 +84,7 @@ class ApiService {
         throw ApiException('No se pudo actualizar la alerta #$id.');
       }
       final body = jsonDecode(res.body) as Map<String, dynamic>;
-      // El PATCH puede devolver solo {id, status, updated_at}; si es así,
-      // reconstituimos localmente en vez de re-fetch para UI instantánea.
-      return AlertModel(
-        id: id,
-        cameraId: 0,
-        zoneId: 0,
-        vehicleType: VehicleType.truck,
-        confidence: 0,
-        detectedAt: DateTime.now(),
-        durationSeconds: 0,
-        status: AlertStatusX.fromString(body['status'] as String? ?? status.apiValue),
-        officerNotes: officerNotes,
-        resolvedAt: status == AlertStatus.resolved ? DateTime.now() : null,
-      );
+      return AlertModel.fromJson(body);
     } on ApiException {
       rethrow;
     } catch (e) {

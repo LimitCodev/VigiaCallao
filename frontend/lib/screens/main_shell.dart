@@ -46,6 +46,16 @@ class _MainShellState extends State<MainShell> {
           _liveAlerts.insert(0, alert);
         });
       },
+      onUpdateAlert: (alert) {
+        setState(() {
+          final idx = _liveAlerts.indexWhere((a) => a.id == alert.id);
+          if (idx >= 0) {
+            _liveAlerts[idx] = alert;
+          } else {
+            _liveAlerts.insert(0, alert);
+          }
+        });
+      },
       onStatusChange: (status) {
         setState(() {
           _socketStatus = switch (status) {
@@ -103,7 +113,7 @@ class _MainShellState extends State<MainShell> {
                 AlertsListScreen(liveAlerts: _liveAlerts),
                 const HistoryScreen(),
                 const CamerasScreen(),
-                const DemoScreen(),
+                DemoScreen(liveAlerts: _liveAlerts),
               ],
             ),
           ),
